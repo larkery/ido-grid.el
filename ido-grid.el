@@ -150,7 +150,7 @@
 
        ;; now we have the grid, we want to ensure something got the highlight face
        (setq ido-grid--cols column)
-       (setq ido-grid--rows (if (= column 1) ido-grid--match-count rows))
+       (setq ido-grid--rows (if (= column 1) (min ido-grid--match-count rows) rows))
        (setq ido-grid--cells (min (* ido-grid--rows ido-grid--cols)
                                   ido-grid--match-count))
 
@@ -284,21 +284,28 @@
 (defun ido-grid--column-shift (n)
   (setq ido-grid--matches (ido-grid--rotate
                            ido-grid--matches
-                           (nth (* ido-grid--rows n) ido-grid--matches))
+                           (if (< n 0)
+                               (nth (+ ido-grid--match-count (* ido-grid--rows n))
+                                    ido-grid--matches)
+                             (nth (* ido-grid--rows n) ido-grid--matches)))
+
         ido-grid--selection-offset (- ido-grid--selection-offset
                                       (* ido-grid--rows n))))
 
 (defun ido-grid--select (offset)
   (setq ido-grid--selection-offset (+ ido-grid--selection-offset offset))
-  (if (> ido-grid--match-count ido-grid--cells)
 
+  (if (> ido-grid--match-count ido-grid--cells)
       (cond ((< ido-grid--selection-offset 0)
-             (ido-grid--column-shift (- (/ offset ido-grid--rows))))
+             (ido-grid--column-shift (/ offset ido-grid--rows)))
             ((>= ido-grid--selection-offset ido-grid--cells)
              (ido-grid--column-shift (/ offset ido-grid--rows))))
 
+
     (when (not (< -1 ido-grid--selection-offset ido-grid--cells))
-      (setq ido-grid--selection-offset (% (- ido-grid--selection-offset 1) ido-grid--cells))))
+      (setq ido-grid--selection-offset (% ido-grid--selection-offset ido-grid--cells))
+      (if (< ido-grid--selection-offset 0) (setq ido-grid--selection-offset (+ ido-grid--selection-offset
+                                                                               ido-grid--cells)))))
 
   (setq ido-grid--selection (nth ido-grid--selection-offset ido-grid--matches)))
 
@@ -320,9 +327,14 @@
 
 (defun ido-grid-cannot-complete ()
   (interactive)
-  (if ido-grid--is-small
+  (if (and ido-grid--is-small
+           (< ido-grid--cells ido-grid--match-count))
       (setq ido-grid--is-small nil)
     (ido-grid-down)))
+
+(defun ido-grid-expand ()
+  (interactive)
+  (setq ido-grid--is-small nil))
 
 ;;; Setup and hooks
 
