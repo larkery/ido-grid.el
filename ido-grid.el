@@ -13,41 +13,100 @@
 
 ;;; Code:
 
+(defgroup ido-grid nil
+  "Displays ido prospects in a grid in the minibuffer"
+  :group 'ido)
+
 (defcustom ido-grid-functions-using-matches
   '(ido-kill-buffer-at-head
     ido-delete-file-at-head
     ido-exit-minibuffer)
   "What functions need `ido-matches' to look right before they are called"
-  :type 'hook)
+  :type 'hook
+  :group 'ido-grid)
 
 (defcustom ido-grid-column-padding 3
-  "How many columns of padding to put between items"
-  :type 'integer)
+  "How many columns of padding to put between items."
+  :type 'integer
+  :group 'ido-grid)
 
-(defcustom ido-grid-rows 0.15
-  "How many rows to show. If a float, is a proportion of the frame height."
-  :type 'number)
+(defcustom ido-grid-rows 6
+  "How many rows to show."
+  :type '(choice :tag "Number of rows"
+                 (integer :tag "Exactly")
+                 (float :tag "Proportion of frame"))
+  :group 'ido-grid)
 
 (defcustom ido-grid-start-small t
-  "Whether to start ido-grid in a small size")
+  "Whether to start ido-grid in a small size by default.
+When the grid is small, the up or down arrows will make it bigger."
+  :group 'ido-grid)
 
 (defcustom ido-grid-max-columns nil
-  "Max column count (or nil)")
+  "How many columns to show."
+  :type '(choice :tag "Columns"
+                 (integer :tag "Maximum of")
+                 (const :tag "As many as fit" nil))
+  :group 'ido-grid)
 
-(defcustom ido-grid-vertical-commands ()
-  "Commands which will be advised to show in a vertical list"
-  :type 'hook)
+(defcustom ido-grid-special-commands ()
+  "Special rules for some commands.
+If you want some commands to pop-up differently (e.g. in a vertical list or horizontal row),
+You can configure that in here; each entry is a command, and then alternative bindings for the layout variables."
+  :set #'ido-grid--custom-advice
 
-(defface ido-grid-common-match '((t (:inherit shadow))) "face for match prefix")
-(defface ido-grid-match '((t (:inherit underline))) "match face 1")
-(defface ido-grid-match-1 '((t (:background "#104e8b" :weight bold))) "match face 2")
-(defface ido-grid-match-2 '((t (:background "#2e8b57" :weight bold))) "match face 3")
-(defface ido-grid-match-3 '((t (:background "#8b8b00" :weight bold))) "match face 4")
+  :type '(repeat
+          (list
+           (function :tag "Command name")
+           (choice :tag "Number of rows"
+                   (integer :tag "Exactly")
+                   (float :tag "Proportion of frame"))
+           (choice :tag "Columns"
+                   (integer :tag "Maximum of")
+                   (const :tag "As many as fit" nil))
+           (boolean :tag "Start small")))
+  :group 'ido-grid)
+
+(defun ido-grid--generic-advice (o &rest args)
+  (let ((elt (assoc this-command ido-grid-special-commands)))
+    (if elt
+        (let ((ido-grid-rows (nth 1 elt))
+              (ido-grid-max-columns (nth 2 elt))
+              (ido-grid-start-small (nth 3 elt)))
+          (apply o args))
+      (apply o args))))
+
+(defun ido-grid--custom-advice (sym new-value)
+  (dolist (c ido-grid-special-commands)
+    (advice-remove (car c) #'ido-grid--generic-advice))
+  (set-default sym new-value)
+  (dolist (c ido-grid-special-commands)
+    (advice-add (car c) :around #'ido-grid--generic-advice)))
+
+(defface ido-grid-common-match '((t (:inherit shadow))) "Face for the common prefix (text that is inserted if you press tab)"
+  :group 'ido-grid)
+(defface ido-grid-match '((t (:inherit underline))) "Face for the whole matching part of a candidate"
+  :group 'ido-grid)
+(defface ido-grid-match-1 '((t (:background "#104e8b" :weight bold))) "Face for first, fourth, ... match group"
+  :group 'ido-grid)
+(defface ido-grid-match-2 '((t (:background "#2e8b57" :weight bold))) "Face for second, fifth, ... match group"
+  :group 'ido-grid)
+(defface ido-grid-match-3 '((t (:background "#8b8b00" :weight bold))) "Face for third, sixth, ... match group"
+  :group 'ido-grid)
 
 (defcustom ido-grid-match-faces '(ido-grid-match-1
                                   ido-grid-match-2
                                   ido-grid-match-3)
-  "Faces to use for parts of matches")
+  "Faces to use for parts of matches (usually these are the faces above - match groups cycle through this list.)"
+  :type '(repeat face)
+  :group 'ido-grid)
+
+(defcustom ido-grid-bind-keys t
+  "Bind the direction keys and C-n/C-p and `ido-cannot-complete-command'.
+If you don't like these bindings, you can add a function to `ido-setup-hook' to bind the commands yourself.
+See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
+  :group 'ido-grid
+  :type 'boolean)
 
 (defvar ido-grid--selection nil)
 (defvar ido-grid--selection-offset 0)
@@ -185,52 +244,57 @@
   ;; handle no-match here
 
   (let ((ido-matches ido-grid--matches))
-    (setq ido-grid--match-count (length ido-matches))
-    (concat
-     (if (and (stringp ido-common-match-string)
-              (> (length ido-common-match-string)
-                 (length name)))
-         (let ((x (substring ido-common-match-string (length name))))
-           (add-face-text-property
-            0 (length x)
-            'ido-grid-common-match nil x)
-           x)
-       "")
-     (format " (%d)" ido-grid--match-count)
-     (or (unless ido-matches
-           (cond (ido-show-confirm-message  " [Confirm]")
-                 (ido-directory-nonreadable " [Not readable]")
-                 (ido-directory-too-big     " [Too big]")
-                 (ido-report-no-match       " [No match]")
-                 (t "")))
+    (setq ido-grid--match-count (length ido-matches)
+          ido-grid--cells 1)
 
-         (when ido-incomplete-regexp
-           (concat " " (let ((name (substring (ido-name (car ido-matches)) 0)))
-                         (add-face-text-property 0 (length name) 'ido-incomplete-regexp nil name)
-                         name)))
+    (or (unless ido-matches
+          (cond (ido-show-confirm-message  " [Confirm]")
+                (ido-directory-nonreadable " [Not readable]")
+                (ido-directory-too-big     " [Too big]")
+                (ido-report-no-match       " [No match]")
+                (t "")))
 
-         ;; todo make tall?
-         (when (not (cdr ido-matches))
-           (let ((standard-height `(:height ,(face-attribute 'default :height nil t)))
-                 (name (substring (ido-name (car ido-matches)) 0)))
-             (add-face-text-property 0 (length name) standard-height nil name)
-             (add-face-text-property 0 (length name) 'ido-only-match nil name)
-             (concat "\n " name)))
+        (when ido-incomplete-regexp
+          (concat " " (let ((name (substring (ido-name (car ido-matches)) 0)))
+                        (add-face-text-property 0 (length name) 'ido-incomplete-regexp nil name)
+                        name)))
 
-         (ido-grid--grid (if ido-enable-regexp
-                             ido-text
-                           (regexp-quote name))
-                         ido-matches
-                         (- (window-body-width (minibuffer-window)) 1)
-                         (if ido-grid--is-small 1
-                           (if (floatp ido-grid-rows)
-                               (max 1 (round (* ido-grid-rows
-                                                (frame-height))))
-                             ido-grid-rows))
-                         ido-grid-max-columns)
-         "")))
+        (when (not (cdr ido-matches))
+          (let ((standard-height `(:height ,(face-attribute 'default :height nil t)))
+                (name (substring (ido-name (car ido-matches)) 0)))
+            (add-face-text-property 0 (length name) standard-height nil name)
+            (add-face-text-property 0 (length name) 'ido-only-match nil name)
+            (concat "\n " name)))
 
-  )
+        (let ((grid
+               (ido-grid--grid (if ido-enable-regexp ido-text (regexp-quote name))
+                               ido-matches
+                               (- (window-body-width (minibuffer-window)) 1)
+                               (if ido-grid--is-small 1
+                                 (if (floatp ido-grid-rows)
+                                     (max 1 (round (* ido-grid-rows
+                                                      (frame-height))))
+                                   ido-grid-rows))
+                               ido-grid-max-columns)))
+
+          (concat (if (and (stringp ido-common-match-string)
+                           (> (length ido-common-match-string)
+                              (length name)))
+                      (let ((x (substring ido-common-match-string (length name))))
+                        (add-face-text-property
+                         0 (length x)
+                         'ido-grid-common-match nil x)
+                        x)
+                    "")
+
+                  (if (> (- ido-grid--match-count ido-grid--cells) 0)
+                      (format " (%d more)%s"
+                              (- ido-grid--match-count ido-grid--cells)
+                              (if ido-grid--is-small " ↓" ""))
+                    "")
+
+                  grid)))))
+
 
 ;;; Return value and offset
 
@@ -340,12 +404,17 @@
   (interactive)
   (ido-grid--select 1))
 
-(defun ido-grid-cannot-complete ()
+(defun ido-grid-down-or-expand ()
   (interactive)
-  (if (and ido-grid--is-small
-           (< ido-grid--cells ido-grid--match-count))
+  (if ido-grid--is-small
       (setq ido-grid--is-small nil)
     (ido-grid-down)))
+
+(defun ido-grid-up-or-expand ()
+  (interactive)
+  (if ido-grid--is-small
+      (setq ido-grid--is-small nil)
+    (ido-grid-up)))
 
 (defun ido-grid-expand ()
   (interactive)
@@ -366,12 +435,13 @@
         ido-grid--nrows 0
         ido-grid--ncols 0)
 
-  (define-key ido-completion-map (kbd "<right>") #'ido-grid-right)
-  (define-key ido-completion-map (kbd "<left>")  #'ido-grid-left)
-  (define-key ido-completion-map (kbd "<up>")    #'ido-grid-up)
-  (define-key ido-completion-map (kbd "<down>")  #'ido-grid-down)
-  (define-key ido-completion-map (kbd "C-p")    #'ido-grid-up)
-  (define-key ido-completion-map (kbd "C-n")  #'ido-grid-down))
+  (when ido-grid-bind-keys
+    (define-key ido-completion-map (kbd "<right>") #'ido-grid-right)
+    (define-key ido-completion-map (kbd "<left>")  #'ido-grid-left)
+    (define-key ido-completion-map (kbd "<up>")    #'ido-grid-up-or-expand)
+    (define-key ido-completion-map (kbd "<down>")  #'ido-grid-down-or-expand)
+    (define-key ido-completion-map (kbd "C-p")     #'ido-grid-up)
+    (define-key ido-completion-map (kbd "C-n")     #'ido-grid-down)))
 
 (defun ido-grid--vertical (o &rest args)
   (let ((ido-grid-start-small nil)
