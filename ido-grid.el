@@ -51,8 +51,9 @@ When the grid is small, the up or down arrows will make it bigger."
 
 ;;;###autoload
 (defun ido-grid--custom-advice (sym new-value)
-  (dolist (c ido-grid-special-commands)
-    (advice-remove (car c) #'ido-grid--generic-advice))
+  (when (boundp 'ido-grid-special-commands)
+    (dolist (c ido-grid-special-commands)
+      (advice-remove (car c) #'ido-grid--generic-advice)))
   (set-default sym new-value)
   (dolist (c ido-grid-special-commands)
     (advice-add (car c) :around #'ido-grid--generic-advice)))
