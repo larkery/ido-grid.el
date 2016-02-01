@@ -244,9 +244,9 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
   (let* ((ido-matches ido-grid--matches)
          (cmd (assoc this-command ido-grid-special-commands))
          (ido-grid-rows (if cmd (nth 1 cmd) ido-grid-rows))
-         (ido-grid-max-columns (if cmd (nth 2 cmd) ido-grid-rows))
-         (ido-grid-start-small (if cmd (nth 3 cmd) ido-grid-rows))
-         (ido-grid-indent (if cmd (nth 4 cmd) ido-grid-rows)))
+         (ido-grid-max-columns (if cmd (nth 2 cmd) ido-grid-max-columns))
+         (ido-grid-start-small (if cmd (nth 3 cmd) ido-grid-start-small))
+         (ido-grid-indent (if cmd (or (nth 4 cmd) ido-grid-indent) ido-grid-indent)))
 
     (setq ido-grid--match-count (length ido-matches)
           ido-grid--cells 1)
@@ -268,7 +268,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                 (name (substring (ido-name (car ido-matches)) 0)))
             (add-face-text-property 0 (length name) standard-height nil name)
             (add-face-text-property 0 (length name) 'ido-only-match nil name)
-            (concat "\n " name)))
+            (concat "\n" (make-string ido-grid-indent " ") name)))
 
         (let ((grid
                (ido-grid--grid (if ido-enable-regexp ido-text (regexp-quote name))
