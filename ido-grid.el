@@ -445,19 +445,11 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
     (define-key ido-completion-map (kbd "C-p")     #'ido-grid-up)
     (define-key ido-completion-map (kbd "C-n")     #'ido-grid-down)))
 
-(defun ido-grid--vertical (o &rest args)
-  (let ((ido-grid-start-small nil)
-        (ido-grid-max-columns 1))
-    (apply o args)))
-
 ;;;###autoload
 (defun ido-grid-enable ()
   (interactive)
   (advice-add 'ido-completions :override #'ido-grid--completions)
   (advice-add 'ido-set-matches :around #'ido-grid--set-matches '(:depth -50))
-
-  (dolist (fn ido-grid-vertical-commands)
-    (advice-add fn :around #'ido-grid--vertical))
 
   (dolist (fn ido-grid-functions-using-matches)
     (advice-add fn :around #'ido-grid--modify-matches))
