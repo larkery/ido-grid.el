@@ -25,6 +25,11 @@
   :type 'hook
   :group 'ido-grid)
 
+(defcustom ido-grid-indent 1
+  "How many columns indent on the left."
+  :type 'integer
+  :group 'ido-grid)
+
 (defcustom ido-grid-column-padding 3
   "How many columns of padding to put between items."
   :type 'integer
@@ -62,8 +67,6 @@ When the grid is small, the up or down arrows will make it bigger."
   "Special rules for some commands.
 If you want some commands to pop-up differently (e.g. in a vertical list or horizontal row),
 You can configure that in here; each entry is a command, and then alternative bindings for the layout variables."
-  :set #'ido-grid--custom-advice
-
   :type '(repeat
           (list
            (function :tag "Command name")
@@ -73,17 +76,9 @@ You can configure that in here; each entry is a command, and then alternative bi
            (choice :tag "Columns"
                    (integer :tag "Maximum of")
                    (const :tag "As many as fit" nil))
-           (boolean :tag "Start small")))
+           (boolean :tag "Start small")
+           (integer :tag "Indent")))
   :group 'ido-grid)
-
-(defun ido-grid--generic-advice (o &rest args)
-  (let ((elt (assoc this-command ido-grid-special-commands)))
-    (if elt
-        (let ((ido-grid-rows (nth 1 elt))
-              (ido-grid-max-columns (nth 2 elt))
-              (ido-grid-start-small (nth 3 elt)))
-          (apply o args))
-      (apply o args))))
 
 (defface ido-grid-common-match '((t (:inherit shadow))) "Face for the common prefix (text that is inserted if you press tab)"
   :group 'ido-grid)
@@ -179,7 +174,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
            (indent-tabs nil) (tab-width 1)
            (row 0) (column 0)
            (column-max 0)
-           (target-column 1)
+           (target-column ido-grid-indent)
            (name-buffer (make-vector rows nil))
            seen-selection
            selection-in-column
@@ -242,10 +237,17 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
 ;;;; the completion code
 
+
 (defun ido-grid--completions (name)
   ;; handle no-match here
 
-  (let ((ido-matches ido-grid--matches))
+  (let* ((ido-matches ido-grid--matches)
+         (cmd (assoc this-command ido-grid-special-commands))
+         (ido-grid-rows (if cmd (nth 1 cmd) ido-grid-rows))
+         (ido-grid-max-columns (if cmd (nth 2 cmd) ido-grid-rows))
+         (ido-grid-start-small (if cmd (nth 3 cmd) ido-grid-rows))
+         (ido-grid-indent (if cmd (nth 4 cmd) ido-grid-rows)))
+
     (setq ido-grid--match-count (length ido-matches)
           ido-grid--cells 1)
 
