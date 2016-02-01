@@ -1,3 +1,18 @@
+;;; ido-grid.el --- Ido candidate grid
+
+;; Copyright (C) 2016 Tom Hinton
+
+;; Author: T. G. Hinton <ido-grid@larkery.com>
+;; Version: 1
+;; Keywords: ido
+;; URL: http://github.com/larkery/ido-grid.el
+
+;;; Commentary
+
+;; A simpler version of ido-grid-mode.el, which only does one kind of layout.
+
+;;; Code:
+
 (defcustom ido-grid-functions-using-matches
   '(ido-kill-buffer-at-head
     ido-delete-file-at-head
@@ -363,6 +378,7 @@
         (ido-grid-max-columns 1))
     (apply o args)))
 
+;;;###autoload
 (defun ido-grid-enable ()
   (interactive)
   (advice-add 'ido-completions :override #'ido-grid--completions)
@@ -388,3 +404,7 @@
     (advice-remove fn #'ido-grid--modify-matches))
 
   (remove-hook 'ido-setup-hook #'ido-grid--setup))
+
+(provide 'ido-grid)
+
+;;; ido-grid.el ends here
