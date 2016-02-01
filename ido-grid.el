@@ -268,7 +268,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                 (name (substring (ido-name (car ido-matches)) 0)))
             (add-face-text-property 0 (length name) standard-height nil name)
             (add-face-text-property 0 (length name) 'ido-only-match nil name)
-            (concat "\n" (make-string ido-grid-indent " ") name)))
+            (concat "\n" (make-string ido-grid-indent ? ) name)))
 
         (let ((grid
                (ido-grid--grid (if ido-enable-regexp ido-text (regexp-quote name))
