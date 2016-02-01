@@ -49,6 +49,14 @@ When the grid is small, the up or down arrows will make it bigger."
                  (const :tag "As many as fit" nil))
   :group 'ido-grid)
 
+;;;###autoload
+(defun ido-grid--custom-advice (sym new-value)
+  (dolist (c ido-grid-special-commands)
+    (advice-remove (car c) #'ido-grid--generic-advice))
+  (set-default sym new-value)
+  (dolist (c ido-grid-special-commands)
+    (advice-add (car c) :around #'ido-grid--generic-advice)))
+
 (defcustom ido-grid-special-commands ()
   "Special rules for some commands.
 If you want some commands to pop-up differently (e.g. in a vertical list or horizontal row),
@@ -75,13 +83,6 @@ You can configure that in here; each entry is a command, and then alternative bi
               (ido-grid-start-small (nth 3 elt)))
           (apply o args))
       (apply o args))))
-
-(defun ido-grid--custom-advice (sym new-value)
-  (dolist (c ido-grid-special-commands)
-    (advice-remove (car c) #'ido-grid--generic-advice))
-  (set-default sym new-value)
-  (dolist (c ido-grid-special-commands)
-    (advice-add (car c) :around #'ido-grid--generic-advice)))
 
 (defface ido-grid-common-match '((t (:inherit shadow))) "Face for the common prefix (text that is inserted if you press tab)"
   :group 'ido-grid)
