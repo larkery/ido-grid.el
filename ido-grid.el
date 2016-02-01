@@ -137,7 +137,9 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
      (add-face-text-property 0 l standard-height nil name)
 
      (if (eq item ido-grid--selection)
-         (add-face-text-property 0 l 'ido-first-match nil name)
+         (add-face-text-property 0 l (if (= 1 ido-grid--match-count)
+                                         'ido-only-match
+                                       'ido-first-match) nil name)
        (when (ido-final-slash name)
          (add-face-text-property 0 l 'ido-subdir nil name)))
 
@@ -263,13 +265,6 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
           (concat " " (let ((name (substring (ido-name (car ido-matches)) 0)))
                         (add-face-text-property 0 (length name) 'ido-incomplete-regexp nil name)
                         name)))
-
-        (when (not (cdr ido-matches))
-          (let ((standard-height `(:height ,(face-attribute 'default :height nil t)))
-                (name (substring (ido-name (car ido-matches)) 0)))
-            (add-face-text-property 0 (length name) standard-height nil name)
-            (add-face-text-property 0 (length name) 'ido-only-match nil name)
-            (concat "\n" (make-string ido-grid-indent ? ) name)))
 
         (let ((grid
                (ido-grid--grid (if ido-enable-regexp ido-text (regexp-quote name))
