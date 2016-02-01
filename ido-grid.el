@@ -428,6 +428,8 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
   (setq ido-matches (ido-grid--output-matches))
   (apply o args))
 
+(defvar ido-grid--prior-ccc nil)
+
 (defun ido-grid--setup ()
   (setq ido-grid--is-small ido-grid-start-small
         ido-grid--selection (car ido-grid--matches)
@@ -438,6 +440,8 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
         ido-grid--ncols 0)
 
   (when ido-grid-bind-keys
+    (setq ido-grid--prior-ccc ido-cannot-complete-command
+          ido-cannot-complete-command #'ido-grid-down)
     (define-key ido-completion-map (kbd "<right>") #'ido-grid-right)
     (define-key ido-completion-map (kbd "<left>")  #'ido-grid-left)
     (define-key ido-completion-map (kbd "<up>")    #'ido-grid-up-or-expand)
@@ -458,6 +462,11 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
 (defun ido-grid-disable ()
   (interactive)
+
+  (setq ido-cannot-complete-command (or ido-grid--prior-ccc
+                                        ido-cannot-complete-command)
+        ido-grid--prior-ccc nil)
+
   (advice-remove 'ido-completions #'ido-grid--completions)
   (advice-remove 'ido-set-matches #'ido-grid--set-matches)
 
