@@ -31,7 +31,8 @@
 ;;;###autoload
 (defun ido-grid--set-enabled (s v)
   (set-default s v)
-  (if v (ido-grid-enable) (ido-grid-disable)))
+  (when (boundp 'ido-grid-enable)
+    (if v (ido-grid-enable) (ido-grid-disable))))
 
 ;;;###autoload
 (defcustom ido-grid-enabled nil
@@ -529,6 +530,8 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
     (advice-remove fn #'ido-grid--modify-matches))
 
   (remove-hook 'ido-setup-hook #'ido-grid--setup))
+
+(when ido-grid-enabled (ido-grid-enable))
 
 (provide 'ido-grid)
 
