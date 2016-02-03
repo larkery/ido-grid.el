@@ -28,7 +28,6 @@
   "Displays ido prospects in a grid in the minibuffer"
   :group 'ido)
 
-;;;###autoload
 (defcustom ido-grid-enabled nil
   "Display ido prospects in a grid?"
   :type 'boolean
