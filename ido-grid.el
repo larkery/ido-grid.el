@@ -39,6 +39,7 @@
   "Display ido prospects in a grid?"
   :type 'boolean
   :group 'ido-grid
+  :require 'ido-grid
   :set #'ido-grid--set-enabled)
 
 (defcustom ido-grid-functions-using-matches
