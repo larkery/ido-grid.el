@@ -29,18 +29,15 @@
   :group 'ido)
 
 ;;;###autoload
-(defun ido-grid--set-enabled (s v)
-  (set-default s v)
-  (when (functionp 'ido-grid-enable)
-    (if v (ido-grid-enable) (ido-grid-disable))))
-
-;;;###autoload
 (defcustom ido-grid-enabled nil
   "Display ido prospects in a grid?"
   :type 'boolean
   :group 'ido-grid
   :require 'ido-grid
-  :set #'ido-grid--set-enabled)
+  :set (lambda (s v) (set-default s v)
+         ;; do not invoke if not autoloaded yet?
+         (when (featurep 'ido-grid)
+           (if v (ido-grid-enable) (ido-grid-disable)))))
 
 (defcustom ido-grid-functions-using-matches
   '(ido-kill-buffer-at-head
