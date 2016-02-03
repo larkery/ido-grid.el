@@ -229,13 +229,15 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
          ;; emit them into the temporary buffer
          (when (or (not items)
                    (= row rows))
-           (let ((new-target (+ column-max
+           (let ((trunc nil)
+                 (new-target (+ column-max
                                 target-column
                                 ido-grid-column-padding)))
              (if (and (> column 0)
                       (> new-target width))
                  (setq items nil) ;; die
                (progn ;; do the thing
+                 (setq trunc (> new-target width)) ;; if there is a single column, trim it
                  (setq seen-selection (or seen-selection selection-in-column))
                  (goto-char (point-min))
                  (end-of-line)
@@ -243,6 +245,12 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                    (insert " ")
                    (move-to-column target-column t)
                    (insert (aref name-buffer row))
+                   (when trunc
+                     (let ((p (point)))
+                       (move-to-column width)
+                       (when (> p (point))
+                         (delete-region (- (point) 1) p)
+                         (insert "→"))))
                    (end-of-line 2))
                  (setq target-column new-target
                        row 0
@@ -486,7 +494,8 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
         ido-grid--max-mini-window-height max-mini-window-height
         ido-grid--resize-mini-windows resize-mini-windows
 
-        max-mini-window-height (1+ ido-grid-rows)
+        max-mini-window-height (max max-mini-window-height
+                                    (1+ ido-grid-rows))
         resize-mini-windows t)
 
   (when ido-grid-bind-keys
