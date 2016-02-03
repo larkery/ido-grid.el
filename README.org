@@ -2,7 +2,9 @@
 
 This is a successor to ido-grid-mode. It does essentially the same thing (display ido prospects in a grid), but it's rewritten to be faster and less flaky.
 
+[[file:m-x.gif][M-x]]
 
+[[file:vert.gif][vertical style]]
 
 * Installation
 Use =M-x package-install-file=, or install from MELPA if I put it up there, or use =el-get=.
