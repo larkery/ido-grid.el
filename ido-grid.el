@@ -511,6 +511,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
   (add-hook 'ido-setup-hook #'ido-grid--setup))
 
+;;;###autoload
 (defun ido-grid-disable ()
   (interactive)
 
