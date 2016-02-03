@@ -13,9 +13,32 @@
 
 ;;; Code:
 
+;;;; variables from ido
+
+(eval-when-compile
+  ;; this is to make compile be quiet
+  (defvar ido-show-confirm-message)
+  (defvar ido-directory-too-big)
+  (defvar ido-directory-nonreadable)
+  (defvar ido-use-merged-list))
+
+;;;; our variables
+
 (defgroup ido-grid nil
   "Displays ido prospects in a grid in the minibuffer"
   :group 'ido)
+
+;;;###autoload
+(defcustom ido-grid-enabled nil
+  "Display ido prospects in a grid?"
+  :type 'boolean
+  :group 'ido-grid
+  :require 'ido-grid
+  :set (lambda (s v)
+         (set-default s v)
+         (if v
+             (ido-grid-enable)
+           (ido-grid-disable))))
 
 (defcustom ido-grid-functions-using-matches
   '(ido-kill-buffer-at-head
@@ -42,7 +65,7 @@
                  (float :tag "Proportion of frame"))
   :group 'ido-grid)
 
-(defcustom ido-grid-start-small t
+(defcustom ido-grid-start-small nil
   "Whether to start ido-grid in a small size by default.
 When the grid is small, the up or down arrows will make it bigger."
   :group 'ido-grid)
@@ -64,12 +87,14 @@ When the grid is small, the up or down arrows will make it bigger."
 
 ;;;###autoload
 (defun ido-grid--custom-advice (sym new-value)
-  (when (boundp 'ido-grid-special-commands)
-    (dolist (c ido-grid-special-commands)
-      (advice-remove (car c) #'ido-grid--generic-advice)))
-  (set-default sym new-value)
-  (dolist (c ido-grid-special-commands)
-    (advice-add (car c) :around #'ido-grid--generic-advice)))
+  (ido-grid-change-advice new-value
+                          (if (boundp 'ido-grid-special-commands)
+                               ido-grid-special-commands nil))
+  (set-default sym new-value))
+
+(defun ido-grid-change-advice (new &optional old)
+  (dolist (c old) (advice-remove (car c) #'ido-grid--generic-advice))
+  (dolist (c new) (advice-add (car c) :around #'ido-grid--generic-advice)))
 
 (defcustom ido-grid-special-commands ()
   "Special rules for some commands.
@@ -242,7 +267,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
               (insert "\n")
               (buffer-string))
           (progn
-            (ido-grid--column-shift 1)
+            (ido-grid--shift ido-grid--rows t)
             (ido-grid--grid decoration-regexp ido-grid--matches width rows cols))
           )))))
 
@@ -351,7 +376,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
       (if (ido-grid--same-matches ido-matches ido-grid--matches)
           (if (and might-merge-list
                    (not (eq (car ido-matches)
-                            (ido-grid--selected-match))))
+                            ido-grid--selection)))
               (setq ido-matches (ido-grid--output-matches)))
         (setq ido-grid--matches (copy-sequence ido-matches)
               ido-grid--selection (car ido-grid--matches)
@@ -360,49 +385,69 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
 ;;; Keys and movement
 
-(defun ido-grid--column-shift (n)
-  (setq ido-grid--matches (ido-grid--rotate
-                           ido-grid--matches
-                           (if (< n 0)
-                               (nth (+ ido-grid--match-count (* ido-grid--rows n))
-                                    ido-grid--matches)
-                             (nth (* ido-grid--rows n) ido-grid--matches)))
+(defun ido-grid--+% (a b m)
+  (let ((r (% (+ a b) m)))
+    (if (< r 0) (+ r m) r)))
 
-        ido-grid--selection-offset (- ido-grid--selection-offset
-                                      (* ido-grid--rows n))))
+(defun ido-grid--shift (n &optional keep-offset)
+  (if (= ido-grid--cells ido-grid--match-count)
+      ;; it does all fit but it may not be a rectangle.
+      (unless keep-offset
+        (let ((new-offset (+ ido-grid--selection-offset n)))
+          (setq new-offset
+                (cond
+                 ((>= new-offset ido-grid--cells)
+                  (% (+ 1 (% ido-grid--selection-offset ido-grid--rows)) ido-grid--rows))
 
-(defun ido-grid--select (offset)
-  (setq ido-grid--selection-offset (+ ido-grid--selection-offset offset))
+                 ((< new-offset 0)
+                  ;; we went left off the side
+                  ;; we want to go up a row, and add columns until it would be wrong
+                  (+ (% (- (% ido-grid--selection-offset ido-grid--rows) 1) ido-grid--rows) ;; left hand thing
+                     (offset-of-the-row) ;;???
+                     )
+                  )
 
-  (if (> ido-grid--match-count ido-grid--cells)
-      (cond ((< ido-grid--selection-offset 0)
-             (ido-grid--column-shift (/ offset ido-grid--rows)))
-            ((>= ido-grid--selection-offset ido-grid--cells)
-             (ido-grid--column-shift (/ offset ido-grid--rows))))
+                 (t new-offset)
+                 ))
 
+          (setq ido-grid--selection-offset new-offset
+                ido-grid--selection (nth new-offset ido-grid--matches))))
 
-    (when (not (< -1 ido-grid--selection-offset ido-grid--cells))
-      (setq ido-grid--selection-offset (% ido-grid--selection-offset ido-grid--cells))
-      (if (< ido-grid--selection-offset 0) (setq ido-grid--selection-offset (+ ido-grid--selection-offset
-                                                                               ido-grid--cells)))))
+    ;; it doesn't all fit, so we can always make a rectangle?
+    (let* ((new-offset (ido-grid--+% ido-grid--selection-offset n
+                                     ido-grid--match-count))
+           (new-head (if (< n 0)
+                         (- ido-grid--match-count ido-grid--rows)
+                       ido-grid--rows)))
 
-  (setq ido-grid--selection (nth ido-grid--selection-offset ido-grid--matches)))
+      ;; check if this offset is displayed on screen - if not we need it to be displayed
+      ;; however, the thing to be selected is different - it should be the top of a row
+      (when (>= new-offset ido-grid--cells)
+        (setq ido-grid--matches
+              (ido-grid--rotate ido-grid--matches
+                                (nth new-head ido-grid--matches))
+              new-offset (- new-offset new-head)))
+
+      (unless keep-offset
+        (setq ido-grid--selection-offset new-offset
+              ido-grid--selection (nth new-offset ido-grid--matches)
+              )))))
 
 (defun ido-grid-right ()
   (interactive)
-  (ido-grid--select ido-grid--rows))
+  (ido-grid--shift ido-grid--rows))
 
 (defun ido-grid-left ()
   (interactive)
-  (ido-grid--select (- ido-grid--rows)))
+  (ido-grid--shift (- ido-grid--rows)))
 
 (defun ido-grid-up ()
   (interactive)
-  (ido-grid--select -1))
+  (ido-grid--shift -1))
 
 (defun ido-grid-down ()
   (interactive)
-  (ido-grid--select 1))
+  (ido-grid--shift 1))
 
 (defun ido-grid-down-or-expand ()
   (interactive)
@@ -422,8 +467,14 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
 ;;; Setup and hooks
 
+(defvar ido-grid--max-mini-window-height)
+(defvar ido-grid--resize-mini-windows)
+
+
 (defun ido-grid--modify-matches (o &rest args)
-  (setq ido-matches (ido-grid--output-matches))
+  (setq ido-matches (ido-grid--output-matches)
+        max-mini-window-height ido-grid--max-mini-window-height
+        resize-mini-windows ido-grid--resize-mini-windows)
   (apply o args))
 
 (defvar ido-grid--prior-ccc nil)
@@ -432,10 +483,12 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
   (setq ido-grid--is-small ido-grid-start-small
         ido-grid--selection (car ido-grid--matches)
         ido-grid--selection-offset 0
-        ido-grid--nitems 0
-        ido-grid--citems 0
-        ido-grid--nrows 0
-        ido-grid--ncols 0)
+
+        ido-grid--max-mini-window-height max-mini-window-height
+        ido-grid--resize-mini-windows resize-mini-windows
+
+        max-mini-window-height (1+ ido-grid-rows)
+        resize-mini-windows t)
 
   (when ido-grid-bind-keys
     (setq ido-grid--prior-ccc ido-cannot-complete-command
@@ -468,8 +521,8 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
   (advice-remove 'ido-completions #'ido-grid--completions)
   (advice-remove 'ido-set-matches #'ido-grid--set-matches)
 
-  (dolist (fn ido-grid-vertical-commands)
-    (advice-remove fn #'ido-grid--vertical))
+  (dolist (c ido-grid-special-commands)
+    (advice-remove (car c) 'ido-grid--generic-advice))
 
   (dolist (fn ido-grid-functions-using-matches)
     (advice-remove fn #'ido-grid--modify-matches))

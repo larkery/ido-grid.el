@@ -1,0 +1,34 @@
+#+TITLE: ido-grid.el
+
+This is a successor to ido-grid-mode. It does essentially the same thing (display ido prospects in a grid), but it's rewritten to be faster and less flaky.
+
+
+
+* Installation
+Use =M-x package-install-file=, or install from MELPA if I put it up there, or use =el-get=.
+* Using it
+Everything can be made to work with =M-x customize-group ido-grid=. If you don't like customize, you can use =ido-grid-enable= to switch it on.
+* Important custom settings
+- =ido-grid-rows= - this is how many rows to show. If it's a float, it does a proportion of the frame height, so 0.5 is 50% of frame height.
+- =ido-grid-max-columns= - if not nil, only this many columns
+- =ido-grid-start-small= - if this is t, then the grid will only come up with one row until you press up or down or otherwise invoke =ido-grid-expand= (you can bind this to a key by e.g.)
+
+  #+BEGIN_SRC elisp
+    (add-hook 'ido-setup-hook (lambda ()
+                                (define-key ido-completion-map (kbd "M-SPC")
+                                  #'ido-grid-expand)))
+  #+END_SRC
+- =ido-grid-bind-keys= - if this is t, then ido-grid will rebind the keys =<up>=, =<down>=, =<left>=, =<right>=, =C-n= and =C-p= in =ido-completion-map=, and will change =ido-cannot-complete-command= to =ido-grid-down=. Set this to nil and you can do your own key scheme as above.
+- =ido-grid-special-commands= - this is a convenience to do different layout for different commands. For example, I have =ido-occur= configured with =start-small= off and =max-columns= equal to 1, so it displays in a vertical list. If you don't like customize, you can do this kind of thing directly, e.g.
+
+  #+BEGIN_SRC elisp
+    (defun tall (o &rest args)
+      (let ((ido-grid-max-columns 1) ;; single vertical col
+            (ido-grid-start-small nil) ;; popup immediately
+            (ido-grid-rows 0.5)) ;; 50% of frame height
+        (apply o args)
+        ))
+
+    ;; make smex tall
+    (advice-add 'smex :around #'tall)
+  #+END_SRC
