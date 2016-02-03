@@ -31,7 +31,7 @@
 ;;;###autoload
 (defun ido-grid--set-enabled (s v)
   (set-default s v)
-  (when (boundp 'ido-grid-enable)
+  (when (functionp 'ido-grid-enable)
     (if v (ido-grid-enable) (ido-grid-disable))))
 
 ;;;###autoload
