@@ -28,15 +28,17 @@
   "Displays ido prospects in a grid in the minibuffer"
   :group 'ido)
 
+;;;###autoload
+(defun ido-grid--set-enabled (s v)
+  (set-default s v)
+  (if v (ido-grid-enable) (ido-grid-disable)))
+
+;;;###autoload
 (defcustom ido-grid-enabled nil
   "Display ido prospects in a grid?"
   :type 'boolean
   :group 'ido-grid
-  :set (lambda (s v)
-         (set-default s v)
-         (if v
-             (ido-grid-enable)
-           (ido-grid-disable))))
+  :set #'ido-grid--set-enabled)
 
 (defcustom ido-grid-functions-using-matches
   '(ido-kill-buffer-at-head
