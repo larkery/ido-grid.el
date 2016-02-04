@@ -198,7 +198,12 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
 ;;;; The main grid drawing code
 
-(defun ido-grid--grid (decoration-regexp items width rows &optional cols)
+(defun ido-grid--grid (ido-grid--selection
+                       decoration-regexp
+                       items
+                       width
+                       rows
+                       &optional cols)
   "Generate the grid for ITEMS fitting into WIDTH text and ROWS lines with max COLS columns"
   (save-match-data
     (with-temp-buffer
@@ -206,7 +211,6 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
      (goto-char (point-min))
      (let ((original-items items)
            (standard-height `(:height ,(face-attribute 'default :height nil t)))
-           (indent-tabs nil) (tab-width 1)
            (row 0) (column 0)
            (column-max 0)
            (target-column ido-grid-indent)
@@ -232,7 +236,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
            (let ((trunc nil)
                  (new-target (+ column-max
                                 target-column
-                                ido-grid-column-padding)))
+                                1 ido-grid-column-padding)))
              (if (and (> column 0)
                       (> new-target width))
                  (setq items nil) ;; die
@@ -241,8 +245,9 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                  (setq seen-selection (or seen-selection selection-in-column))
                  (goto-char (point-min))
                  (end-of-line)
+
                  (dotimes (row row)
-                   (insert " ")
+                   (unless (zerop column) (insert " "))
                    (move-to-column target-column t)
                    (insert (aref name-buffer row))
                    (when trunc
@@ -273,10 +278,27 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
               (goto-char (point-min))
               (insert "\n")
               (buffer-string))
-          (progn
-            (ido-grid--shift ido-grid--rows t)
-            (ido-grid--grid decoration-regexp ido-grid--matches width rows cols))
+         nil
           )))))
+
+(defun ido-grid--grid-ensure-visible ()
+  (let (grid (shift 0))
+    (while (not grid)
+      (setq grid
+            (ido-grid--grid ido-grid--selection
+                            (if ido-enable-regexp ido-text (regexp-quote name))
+                            ido-grid--matches
+                            (- (window-body-width (minibuffer-window)) 1)
+                            (if ido-grid--is-small 1
+                              (if (floatp ido-grid-rows)
+                                  (max 1 (round (* ido-grid-rows
+                                                   (frame-height))))
+                                ido-grid-rows))
+                            ido-grid-max-columns))
+      (unless grid
+        (ido-grid--shift ido-grid--rows t)))
+    grid
+    ))
 
 ;;;; the completion code
 (defun ido-grid--completions (name)
@@ -298,17 +320,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                         (add-face-text-property 0 (length name) 'ido-incomplete-regexp nil name)
                         name)))
 
-        (let ((grid
-               (ido-grid--grid (if ido-enable-regexp ido-text (regexp-quote name))
-                               ido-matches
-                               (- (window-body-width (minibuffer-window)) 1)
-                               (if ido-grid--is-small 1
-                                 (if (floatp ido-grid-rows)
-                                     (max 1 (round (* ido-grid-rows
-                                                      (frame-height))))
-                                   ido-grid-rows))
-                               ido-grid-max-columns)))
-
+        (let* ((grid (ido-grid--grid-ensure-visible)))
           (concat (if (and (stringp ido-common-match-string)
                            (> (length ido-common-match-string)
                               (length name)))
@@ -477,7 +489,6 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 (defvar ido-grid--max-mini-window-height)
 (defvar ido-grid--resize-mini-windows)
 
-
 (defun ido-grid--modify-matches (o &rest args)
   (setq ido-matches (ido-grid--output-matches)
         max-mini-window-height ido-grid--max-mini-window-height
@@ -488,8 +499,6 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
 (defun ido-grid--setup ()
   (setq ido-grid--is-small ido-grid-start-small
-        ido-grid--selection (car ido-grid--matches)
-        ido-grid--selection-offset 0
 
         ido-grid--max-mini-window-height max-mini-window-height
         ido-grid--resize-mini-windows resize-mini-windows
