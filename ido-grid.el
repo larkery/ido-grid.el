@@ -25,13 +25,15 @@
 ;;;; debug
 
 (defmacro ido-grid--log-clear ()
-  `(with-current-buffer (get-buffer-create "*ido-grid-log*")
-     (erase-buffer)))
+  ;; `(with-current-buffer (get-buffer-create "*ido-grid-log*")
+  ;;    (erase-buffer))
+  )
 (defmacro ido-grid--log (&rest args)
-  `(with-current-buffer (get-buffer-create "*ido-grid-log*")
-     (insert (apply #'format (list ,@args)))
-     (insert "\n")
-     (goto-char (point-max))))
+  ;; `(with-current-buffer (get-buffer-create "*ido-grid-log*")
+  ;;    (insert (apply #'format (list ,@args)))
+  ;;    (insert "\n")
+  ;;    (goto-char (point-max)))
+  )
 
 ;;;; our variables
 
@@ -357,24 +359,31 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
 (defvar ido-grid--matches ())
 
+(defun ido-grid--matches-differ-from (x y y2)
+  (when y2 ;; if nil, a is not in y
+    (while (and x (equal (car x) (car y2)))
+      (setq x (cdr x)
+            y2 (or (cdr y2) y)))
+    x))
+
 (defun ido-grid--same-matches (x y)
-  (ido-grid--log "ido-grid--same-matches?\n\t%s\n\t%s" x y)
   (when (equal (length x) (length y))
     (ido-grid--log "ido-grid--same-matches length unchanged %d"
                    (length x))
     (let ((a (car x))
-          (y2 y))
+          (y2 y)
+          (not-finished t))
       ;; find where y2 overlaps x
-      (ido-grid--log "ido-grid--same-matches looking for %s" a)
-      (while (and y2 (not (equal a (car y2))))
-        (setq y2 (cdr y2)))
-      (when y2 ;; if nil, a is not in y
-        (ido-grid--log "ido-grid--same-matches found %s" a)
-        (while (and x (equal (car x) (car y2)))
-          (setq x (cdr x)
-                y2 (or (cdr y2) y)))
-        (ido-grid--log "ido-grid--same-matches difference? %s %s" (car x) (car y2))
-        (not x)))))
+      ;; except, annoyingly there may be more than one place where they overlap.
+      ;; thanks, python.el.
+      (while (and not-finished y2)
+        ;; scan y2 until it matches
+        (while (and y2 (not (equal a (car y2))))
+          (setq y2 (cdr y2)))
+        (setq not-finished (ido-grid--matches-differ-from x y y2)
+              y2 (cdr y2)))
+      (not not-finished)
+      )))
 
 (defun ido-grid--rotate (matches new-head)
   (ido-grid--log "ido-grid--rotate to %s" new-head)
