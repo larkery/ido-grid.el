@@ -22,6 +22,17 @@
   (defvar ido-directory-nonreadable)
   (defvar ido-use-merged-list))
 
+;;;; debug
+
+(defmacro ido-grid--log-clear ()
+  `(with-current-buffer (get-buffer-create "*ido-grid-log*")
+     (erase-buffer)))
+(defmacro ido-grid--log (&rest args)
+  `(with-current-buffer (get-buffer-create "*ido-grid-log*")
+     (insert (apply #'format (list ,@args)))
+     (insert "\n")
+     (goto-char (point-max))))
+
 ;;;; our variables
 
 (defgroup ido-grid nil
@@ -347,23 +358,26 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 (defvar ido-grid--matches ())
 
 (defun ido-grid--same-matches (x y)
+  (ido-grid--log "ido-grid--same-matches?\n\t%s\n\t%s" x y)
   (when (equal (length x) (length y))
+    (ido-grid--log "ido-grid--same-matches length unchanged %d"
+                   (length x))
     (let ((a (car x))
           (y2 y))
       ;; find where y2 overlaps x
-      (while (and y2
-                  (not (equal a
-                              (car y2))))
+      (ido-grid--log "ido-grid--same-matches looking for %s" a)
+      (while (and y2 (not (equal a (car y2))))
         (setq y2 (cdr y2)))
       (when y2 ;; if nil, a is not in y
-        (while (and x
-                    (equal (car x)
-                           (car y2)))
+        (ido-grid--log "ido-grid--same-matches found %s" a)
+        (while (and x (equal (car x) (car y2)))
           (setq x (cdr x)
                 y2 (or (cdr y2) y)))
+        (ido-grid--log "ido-grid--same-matches difference? %s %s" (car x) (car y2))
         (not x)))))
 
 (defun ido-grid--rotate (matches new-head)
+  (ido-grid--log "ido-grid--rotate to %s" new-head)
   (let ((new-tail matches))
     (while new-tail
       (setq new-tail
@@ -387,19 +401,26 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
 
 (defun ido-grid--set-matches (original &rest rest)
+  (ido-grid--log "ido-grid--set-matches invoked")
   (let ((might-change-something (or ido-rescan ido-use-merged-list))
         (might-merge-list ido-use-merged-list)
         (result-of-original (apply original rest)))
 
     (when might-change-something
+      (ido-grid--log "ido-grid--set-matches checking for change")
       (if (ido-grid--same-matches ido-matches ido-grid--matches)
-          (if (and might-merge-list
-                   (not (eq (car ido-matches)
-                            ido-grid--selection)))
-              (setq ido-matches (ido-grid--output-matches)))
-        (setq ido-grid--matches (copy-sequence ido-matches)
-              ido-grid--selection (car ido-grid--matches)
-              ido-grid--selection-offset 0))
+          (progn
+            (ido-grid--log "ido-grid--set-matches no changes")
+            (if (and might-merge-list
+                    (not (eq (car ido-matches)
+                             ido-grid--selection)))
+                (ido-grid--log "ido-grid--set-matches changing ido matches")
+               (setq ido-matches (ido-grid--output-matches))))
+        (progn
+          (ido-grid--log "ido-grid--set-matches matches changed")
+          (setq ido-grid--matches (copy-sequence ido-matches)
+                ido-grid--selection (car ido-grid--matches)
+                ido-grid--selection-offset 0)))
       )))
 
 ;;; Keys and movement
@@ -409,28 +430,31 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
     (if (< r 0) (+ r m) r)))
 
 (defun ido-grid--shift (n &optional keep-offset)
+  (ido-grid--log "ido-grid--shift %d %s" n keep-offset)
   (if (= ido-grid--cells ido-grid--match-count)
       ;; it does all fit but it may not be a rectangle.
-      (unless keep-offset
-        (let ((new-offset (+ ido-grid--selection-offset n)))
-          (setq new-offset
-                (cond
-                 ((>= new-offset ido-grid--cells)
-                  (% (+ 1 (% ido-grid--selection-offset ido-grid--rows)) ido-grid--rows))
+      (progn
+        (ido-grid--log "ido-grid--shift not rotating %d %d" ido-grid--cells ido-grid--match-count)
+        (unless keep-offset
+         (let ((new-offset (+ ido-grid--selection-offset n)))
+           (setq new-offset
+                 (cond
+                  ((>= new-offset ido-grid--cells)
+                   (% (+ 1 (% ido-grid--selection-offset ido-grid--rows)) ido-grid--rows))
 
-                 ((< new-offset 0)
-                  ;; we went left off the side
-                  ;; we want to go up a row, and add columns until it would be wrong
-                  (+ (% (- (% ido-grid--selection-offset ido-grid--rows) 1) ido-grid--rows) ;; left hand thing
-                     (offset-of-the-row) ;;???
-                     )
-                  )
+                  ((< new-offset 0)
+                   ;; we went left off the side
+                   ;; we want to go up a row, and add columns until it would be wrong
+                   (+ (% (- (% ido-grid--selection-offset ido-grid--rows) 1) ido-grid--rows) ;; left hand thing
+                      (offset-of-the-row) ;;???
+                      )
+                   )
 
-                 (t new-offset)
-                 ))
+                  (t new-offset)
+                  ))
 
-          (setq ido-grid--selection-offset new-offset
-                ido-grid--selection (nth new-offset ido-grid--matches))))
+           (setq ido-grid--selection-offset new-offset
+                 ido-grid--selection (nth new-offset ido-grid--matches)))))
 
     ;; it doesn't all fit, so we can always make a rectangle?
     (let* ((new-offset (ido-grid--+% ido-grid--selection-offset n
@@ -439,6 +463,11 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                          (- ido-grid--match-count ido-grid--rows)
                        ido-grid--rows)))
 
+      (ido-grid--log "ido-grid--shift rotating %d %d %d %d"
+                     ido-grid--selection-offset
+                     new-offset
+                     ido-grid--cells
+                     new-head)
       ;; check if this offset is displayed on screen - if not we need it to be displayed
       ;; however, the thing to be selected is different - it should be the top of a row
       (when (>= new-offset ido-grid--cells)
@@ -446,7 +475,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
               (ido-grid--rotate ido-grid--matches
                                 (nth new-head ido-grid--matches))
               new-offset (- new-offset new-head)))
-
+      (ido-grid--log "ido-grid--shift rotated to %s" (car ido-grid--matches))
       (unless keep-offset
         (setq ido-grid--selection-offset new-offset
               ido-grid--selection (nth new-offset ido-grid--matches)
@@ -498,6 +527,8 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 (defvar ido-grid--prior-ccc nil)
 
 (defun ido-grid--setup ()
+  (ido-grid--log-clear)
+  (ido-grid--log "ido-grid--setup %s" ido-cur-item)
   (setq ido-grid--is-small ido-grid-start-small
 
         ido-grid--max-mini-window-height max-mini-window-height
