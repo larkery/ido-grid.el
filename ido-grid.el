@@ -25,14 +25,14 @@
 ;;;; debug
 
 (defmacro ido-grid--log-clear ()
-  ;; `(with-current-buffer (get-buffer-create "*ido-grid-log*")
-  ;;    (erase-buffer))
+    ;; `(with-current-buffer (get-buffer-create "*ido-grid-log*")
+    ;;    (erase-buffer))
   )
 (defmacro ido-grid--log (&rest args)
-  ;; `(with-current-buffer (get-buffer-create "*ido-grid-log*")
-  ;;    (insert (apply #'format (list ,@args)))
-  ;;    (insert "\n")
-  ;;    (goto-char (point-max)))
+   ;; `(with-current-buffer (get-buffer-create "*ido-grid-log*")
+   ;;        (insert (apply #'format (list ,@args)))
+   ;;        (insert "\n")
+   ;;        (goto-char (point-max)))
   )
 
 ;;;; our variables
@@ -360,11 +360,10 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 (defvar ido-grid--matches ())
 
 (defun ido-grid--matches-differ-from (x y y2)
-  (when y2 ;; if nil, a is not in y
-    (while (and x (equal (car x) (car y2)))
+  (while (and x (equal (car x) (car y2)))
       (setq x (cdr x)
             y2 (or (cdr y2) y)))
-    x))
+  x)
 
 (defun ido-grid--same-matches (x y)
   (when (equal (length x) (length y))
