@@ -318,8 +318,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
   ;; handle no-match here
 
   (let ((ido-matches ido-grid--matches))
-    (setq ido-grid--match-count (length ido-matches)
-          ido-grid--cells 1)
+    (setq ido-grid--cells 1)
 
     (or (unless ido-matches
           (cond (ido-show-confirm-message  " [Confirm]")
@@ -420,16 +419,24 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
           (progn
             (ido-grid--log "ido-grid--set-matches no changes")
             (if (and might-merge-list
-                    (not (eq (car ido-matches)
-                             ido-grid--selection)))
+                     (not (eq (car ido-matches)
+                              ido-grid--selection)))
                 (ido-grid--log "ido-grid--set-matches changing ido matches")
-               (setq ido-matches (ido-grid--output-matches))))
+              (setq ido-matches (ido-grid--output-matches))))
         (progn
           (ido-grid--log "ido-grid--set-matches matches changed")
           (setq ido-grid--matches (copy-sequence ido-matches)
+                ido-grid--match-count (length ido-matches)
                 ido-grid--selection (car ido-grid--matches)
                 ido-grid--selection-offset 0)))
-      )))
+      ))
+
+  (unless (and
+           (< ido-grid--selection-offset ido-grid--match-count)
+           (eq (nth ido-grid--selection-offset ido-grid--matches)
+               ido-grid--selection))
+    (setq ido-grid--selection (car ido-grid--matches)
+          ido-grid--selection-offset 0)))
 
 ;;; Keys and movement
 
@@ -538,6 +545,9 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
   (ido-grid--log-clear)
   (ido-grid--log "ido-grid--setup %s" ido-cur-item)
   (setq ido-grid--is-small ido-grid-start-small
+
+        ido-grid--selection nil
+        ido-grid--selection-offset 0
 
         ido-grid--max-mini-window-height max-mini-window-height
         ido-grid--resize-mini-windows resize-mini-windows
