@@ -458,12 +458,20 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                    (% (+ 1 (% ido-grid--selection-offset ido-grid--rows)) ido-grid--rows))
 
                   ((< new-offset 0)
-                   ;; we went left off the side
-                   ;; we want to go up a row, and add columns until it would be wrong
-                   (+ (% (- (% ido-grid--selection-offset ido-grid--rows) 1) ido-grid--rows) ;; left hand thing
-                      (offset-of-the-row) ;;???
-                      )
-                   )
+                   ;; we went off the left hand side
+                   ;; we want to go up a row, and to the rightmost
+                   ;; column in that row
+
+                   (let ((r (+ (% (- (% ido-grid--selection-offset ido-grid--rows) 1)
+                                  ido-grid--rows) ;; this is the row-offset
+                               ;; we also need column index
+                               ;; there are cells/rows columns
+                               ;; but sometimes a bit less than that
+                               ;; in the event that we have a remaindery bit.
+                               (* ido-grid--rows (/ ido-grid--cells ido-grid--rows)))))
+                     (if (>= r ido-grid--cells)
+                         (- r ido-grid--rows)
+                       r)))
 
                   (t new-offset)
                   ))
