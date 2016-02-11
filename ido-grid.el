@@ -418,10 +418,15 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
       (if (ido-grid--same-matches ido-matches ido-grid--matches)
           (progn
             (ido-grid--log "ido-grid--set-matches no changes")
-            (if (and might-merge-list
-                     (not (eq (car ido-matches)
-                              ido-grid--selection)))
-                (ido-grid--log "ido-grid--set-matches changing ido matches")
+            (ido-grid--log "ido-grid--set-matches %s %s %s"
+                           might-merge-list
+                           (car ido-matches)
+                           ido-grid--selection)
+
+            (when (and might-merge-list
+                       (not (eq (car ido-matches)
+                                ido-grid--selection)))
+              (ido-grid--log "ido-grid--set-matches changing ido matches")
               (setq ido-matches (ido-grid--output-matches))))
         (progn
           (ido-grid--log "ido-grid--set-matches matches changed")
