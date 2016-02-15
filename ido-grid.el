@@ -25,14 +25,14 @@
 ;;;; debug
 
 (defmacro ido-grid--log-clear ()
-    ;; `(with-current-buffer (get-buffer-create "*ido-grid-log*")
-    ;;    (erase-buffer))
+   `(with-current-buffer (get-buffer-create "*ido-grid-log*")
+      (erase-buffer))
   )
 (defmacro ido-grid--log (&rest args)
-   ;; `(with-current-buffer (get-buffer-create "*ido-grid-log*")
-   ;;        (insert (apply #'format (list ,@args)))
-   ;;        (insert "\n")
-   ;;        (goto-char (point-max)))
+    `(with-current-buffer (get-buffer-create "*ido-grid-log*")
+           (insert (apply #'format (list ,@args)))
+           (insert "\n")
+           (goto-char (point-max)))
   )
 
 ;;;; our variables
@@ -171,8 +171,6 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                       (t name)))
           (l (length name)))
 
-     (add-face-text-property 0 l standard-height nil name)
-
      (if (eq item ido-grid--selection)
          (add-face-text-property 0 l (if (= 1 ido-grid--match-count)
                                          'ido-only-match
@@ -290,6 +288,9 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
             (progn
               (goto-char (point-min))
               (insert "\n")
+              (add-face-text-property (point-min)
+                                      (point-max)
+                                      standard-height nil)
               (buffer-string))
          nil
           )))))
