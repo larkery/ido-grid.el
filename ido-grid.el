@@ -25,14 +25,14 @@
 ;;;; debug
 
 (defmacro ido-grid--log-clear ()
-   `(with-current-buffer (get-buffer-create "*ido-grid-log*")
-      (erase-buffer))
+   ;; `(with-current-buffer (get-buffer-create "*ido-grid-log*")
+   ;;    (erase-buffer))
   )
 (defmacro ido-grid--log (&rest args)
-    `(with-current-buffer (get-buffer-create "*ido-grid-log*")
-           (insert (apply #'format (list ,@args)))
-           (insert "\n")
-           (goto-char (point-max)))
+    ;; `(with-current-buffer (get-buffer-create "*ido-grid-log*")
+    ;;        (insert (apply #'format (list ,@args)))
+    ;;        (insert "\n")
+    ;;        (goto-char (point-max)))
   )
 
 ;;;; our variables
