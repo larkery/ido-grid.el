@@ -160,6 +160,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 (defvar ido-grid--cols 0)
 
 (defvar ido-grid--is-small nil)
+(defvar ido-grid--max-rows 0)
 
 ;;; Drawing
 
@@ -295,7 +296,18 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
          nil
           )))))
 
+
+(defun ido-grid--effective-rows ()
+  "Work out how many rows to allow for the grid at the moment"
+  (cond
+   (ido-grid--is-small 1)
+   ((floatp ido-grid--max-rows)
+    (max 1 (round (* ido-grid-rows
+                     (frame-height)))))
+   (t ido-grid--max-rows)))
+
 (defun ido-grid--grid-ensure-visible ()
+  "Generate the grid, shifting enough columns to ensure the current item is visible"
   (let (grid (shift 0))
     (while (not grid)
       (setq grid
@@ -303,16 +315,11 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                             (if ido-enable-regexp ido-text (regexp-quote name))
                             ido-grid--matches
                             (- (window-body-width (minibuffer-window)) 1)
-                            (if ido-grid--is-small 1
-                              (if (floatp ido-grid-rows)
-                                  (max 1 (round (* ido-grid-rows
-                                                   (frame-height))))
-                                ido-grid-rows))
+                            (ido-grid--effective-rows)
                             ido-grid-max-columns))
       (unless grid
         (ido-grid--shift ido-grid--rows t)))
-    grid
-    ))
+    grid))
 
 ;;;; the completion code
 (defun ido-grid--completions (name)
@@ -555,10 +562,21 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
 (defvar ido-grid--prior-ccc nil)
 
+(defun ido-grid-display-more-rows ()
+  (interactive)
+  (setq ido-grid--is-small nil
+        ido-grid--max-rows
+        (+ ido-grid--max-rows
+           (if (floatp ido-grid--max-rows)
+               1.0
+             ido-grid-rows))))
+
 (defun ido-grid--setup ()
   (ido-grid--log-clear)
   (ido-grid--log "ido-grid--setup %s" ido-cur-item)
   (setq ido-grid--is-small ido-grid-start-small
+
+        ido-grid--max-rows ido-grid-rows
 
         ido-grid--selection nil
         ido-grid--selection-offset 0
@@ -577,6 +595,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
     (define-key ido-completion-map (kbd "<left>")  #'ido-grid-left)
     (define-key ido-completion-map (kbd "<up>")    #'ido-grid-up-or-expand)
     (define-key ido-completion-map (kbd "<down>")  #'ido-grid-down-or-expand)
+    (define-key ido-completion-map (kbd "C-<up>")  #'ido-grid-display-more-rows)
     (define-key ido-completion-map (kbd "C-p")     #'ido-grid-up)
     (define-key ido-completion-map (kbd "C-n")     #'ido-grid-down)))
 
