@@ -551,13 +551,8 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
 ;;; Setup and hooks
 
-(defvar ido-grid--max-mini-window-height)
-(defvar ido-grid--resize-mini-windows)
-
 (defun ido-grid--modify-matches (o &rest args)
-  (setq ido-matches (ido-grid--output-matches)
-        max-mini-window-height ido-grid--max-mini-window-height
-        resize-mini-windows ido-grid--resize-mini-windows)
+  (setq ido-matches (ido-grid--output-matches))
   (apply o args))
 
 (defvar ido-grid--prior-ccc nil)
@@ -571,6 +566,11 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                1.0
              ido-grid-rows))))
 
+(defun ido-grid--setup-minibuffer ()
+  "Setup the minibuffer height in grid"
+  (setq-local max-mini-window-height (max max-mini-window-height (1+ ido-grid-rows)))
+  (setq-local resize-mini-windows t))
+
 (defun ido-grid--setup ()
   (ido-grid--log-clear)
   (ido-grid--log "ido-grid--setup %s" ido-cur-item)
@@ -579,14 +579,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
         ido-grid--max-rows ido-grid-rows
 
         ido-grid--selection nil
-        ido-grid--selection-offset 0
-
-        ido-grid--max-mini-window-height max-mini-window-height
-        ido-grid--resize-mini-windows resize-mini-windows
-
-        max-mini-window-height (max max-mini-window-height
-                                    (1+ ido-grid-rows))
-        resize-mini-windows t)
+        ido-grid--selection-offset 0)
 
   (when ido-grid-bind-keys
     (setq ido-grid--prior-ccc ido-cannot-complete-command
@@ -608,7 +601,9 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
   (dolist (fn ido-grid-functions-using-matches)
     (advice-add fn :around #'ido-grid--modify-matches))
 
-  (add-hook 'ido-setup-hook #'ido-grid--setup))
+  (add-hook 'ido-setup-hook #'ido-grid--setup)
+  (add-hook 'ido-minibuffer-setup-hook #'ido-grid--setup-minibuffer))
+
 
 ;;;###autoload
 (defun ido-grid-disable ()
@@ -627,7 +622,8 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
   (dolist (fn ido-grid-functions-using-matches)
     (advice-remove fn #'ido-grid--modify-matches))
 
-  (remove-hook 'ido-setup-hook #'ido-grid--setup))
+  (remove-hook 'ido-setup-hook #'ido-grid--setup)
+  (remove-hook 'ido-minibuffer-setup-hook #'ido-grid--setup-minibuffer))
 
 (when ido-grid-enabled (ido-grid-enable))
 
