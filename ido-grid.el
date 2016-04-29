@@ -570,6 +570,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
   "Setup the minibuffer height in grid"
 
   (let ((inhibit-message t))
+    (make-local-variable 'max-mini-window-height)
     (setq-local max-mini-window-height (max max-mini-window-height (1+ ido-grid-rows)))
     (setq-local resize-mini-windows t)))
 
