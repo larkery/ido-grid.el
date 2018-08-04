@@ -155,6 +155,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 (defvar ido-grid--selection-offset 0)
 (defvar ido-grid--cells 0)
 (defvar ido-grid--match-count 0)
+(defvar ido-grid--text "")
 
 (defvar ido-grid--rows 0)
 (defvar ido-grid--cols 0)
@@ -423,7 +424,9 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 
     (when might-change-something
       (ido-grid--log "ido-grid--set-matches checking for change")
-      (if (ido-grid--same-matches ido-matches ido-grid--matches)
+      ;; Changing ido-text might change faces of matches (flx-ido case)
+      (if (and (string-equal ido-text ido-grid--text)
+               (ido-grid--same-matches ido-matches ido-grid--matches))
           (progn
             (ido-grid--log "ido-grid--set-matches no changes")
             (ido-grid--log "ido-grid--set-matches %s %s %s"
@@ -441,7 +444,8 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
           (setq ido-grid--matches (copy-sequence ido-matches)
                 ido-grid--match-count (length ido-matches)
                 ido-grid--selection (car ido-grid--matches)
-                ido-grid--selection-offset 0)))
+                ido-grid--selection-offset 0
+                ido-grid--text ido-text)))
       ))
 
   (unless (and
