@@ -318,7 +318,10 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                             (ido-grid--effective-rows)
                             ido-grid-max-columns))
       (unless grid
-        (ido-grid--shift ido-grid--rows t)))
+        (setq ido-grid--matches
+              (ido-grid--rotate ido-grid--matches
+                                (nth ido-grid--rows ido-grid--matches))
+              ido-grid--selection-offset (- ido-grid--selection-offset ido-grid--rows))))
     grid))
 
 ;;;; the completion code
@@ -457,16 +460,15 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
   (let ((r (% (+ a b) m)))
     (if (< r 0) (+ r m) r)))
 
-(defun ido-grid--shift (n &optional keep-offset)
-  (ido-grid--log "ido-grid--shift %d %s" n keep-offset)
+(defun ido-grid--shift (n)
+  (ido-grid--log "ido-grid--shift %d" n)
   (if (= ido-grid--cells ido-grid--match-count)
       ;; it does all fit but it may not be a rectangle.
       (progn
         (ido-grid--log "ido-grid--shift not rotating %d %d" ido-grid--cells ido-grid--match-count)
-        (unless keep-offset
-         (let ((new-offset (+ ido-grid--selection-offset n)))
-           (setq new-offset
-                 (cond
+        (let ((new-offset (+ ido-grid--selection-offset n)))
+          (setq new-offset
+                (cond
                   ((>= new-offset ido-grid--cells)
                    (% (+ 1 (% ido-grid--selection-offset ido-grid--rows)) ido-grid--rows))
 
@@ -490,7 +492,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                   ))
 
            (setq ido-grid--selection-offset new-offset
-                 ido-grid--selection (nth new-offset ido-grid--matches)))))
+                 ido-grid--selection (nth new-offset ido-grid--matches))))
 
     ;; it doesn't all fit, so we can always make a rectangle?
     (let* ((new-offset (ido-grid--+% ido-grid--selection-offset n
@@ -512,10 +514,9 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                                 (nth new-head ido-grid--matches))
               new-offset (- new-offset new-head)))
       (ido-grid--log "ido-grid--shift rotated to %s" (car ido-grid--matches))
-      (unless keep-offset
-        (setq ido-grid--selection-offset new-offset
-              ido-grid--selection (nth new-offset ido-grid--matches)
-              )))))
+      (setq ido-grid--selection-offset new-offset
+            ido-grid--selection (nth new-offset ido-grid--matches)
+            ))))
 
 (defun ido-grid-right ()
   (interactive)
