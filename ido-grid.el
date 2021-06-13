@@ -15,12 +15,15 @@
 
 ;;;; variables from ido
 
+(require 'ido)
+
 (eval-when-compile
   ;; this is to make compile be quiet
   (defvar ido-show-confirm-message)
   (defvar ido-directory-too-big)
   (defvar ido-directory-nonreadable)
-  (defvar ido-use-merged-list))
+  (defvar ido-use-merged-list)
+  (defvar ido-grid-special-commands))
 
 ;;;; debug
 
@@ -80,7 +83,9 @@
 (defcustom ido-grid-start-small nil
   "Whether to start ido-grid in a small size by default.
 When the grid is small, the up or down arrows will make it bigger."
-  :group 'ido-grid)
+  :group 'ido-grid
+  :type 'boolean
+  :safe #'booleanp)
 
 (defcustom ido-grid-max-columns nil
   "How many columns to show."
@@ -306,7 +311,9 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                      (frame-height)))))
    (t ido-grid--max-rows)))
 
-(defun ido-grid--grid-ensure-visible ()
+(defvar ido-grid--matches ())
+
+(defun ido-grid--grid-ensure-visible (name)
   "Generate the grid, shifting enough columns to ensure the current item is visible"
   (let (grid (shift 0))
     (while (not grid)
@@ -340,7 +347,7 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
                         (add-face-text-property 0 (length name) 'ido-incomplete-regexp nil name)
                         name)))
 
-        (let* ((grid (ido-grid--grid-ensure-visible)))
+        (let* ((grid (ido-grid--grid-ensure-visible name)))
           (concat (if (and (stringp ido-common-match-string)
                            (> (length ido-common-match-string)
                               (length name)))
@@ -363,8 +370,6 @@ See `ido-grid-up', `ido-grid-down', `ido-grid-left', `ido-grid-right' etc."
 ;;; Return value and offset
 
 ;; this is the awful bit where we change the match list up to a rotation
-
-(defvar ido-grid--matches ())
 
 (defun ido-grid--matches-differ-from (x y y2)
   (while (and x (equal (car x) (car y2)))
